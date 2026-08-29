@@ -1,0 +1,39 @@
+# dependencies
+node_modules/
+
+# Yarn (Berry, nodeLinker: node-modules)
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/sdks
+!.yarn/versions
+.pnp.*
+.yarn/install-state.gz
+
+# Expo
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+
+# Native builds (only present after `expo prebuild`)
+/ios
+/android
+
+# Metro
+.metro-health-check*
+
+# debug logs
+npm-debug.*
+yarn-debug.log*
+yarn-error.log*
+*.log
+
+# env
+.env
+.env.local
+.env.*.local
+
+# macOS
+.DS_Store
