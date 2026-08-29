@@ -37,3 +37,6 @@ yarn-error.log*
 
 # macOS
 .DS_Store
+
+# Local working context (research, decisions, task list) - not part of the submission
+context/
