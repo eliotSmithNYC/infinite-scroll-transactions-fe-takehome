@@ -4,8 +4,9 @@ import {
   Text,
   View,
   StatusBar,
-  ScrollView,
+  SectionList,
   ActivityIndicator,
+  TouchableOpacity,
 } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
@@ -13,9 +14,24 @@ import * as Font from "expo-font";
 import Header from "./src/components/Header";
 import BalanceCard from "./src/components/BalanceCard";
 import CurrencyCard from "./src/components/CurrencyCard";
+import SectionHeader from "./src/components/SectionHeader";
+import TransactionRow from "./src/components/TransactionRow";
+import useTransactionFeed from "./src/hooks/useTransactionFeed";
+import { TransactionSection } from "./src/lib/transactions";
+import { UnifiedTransaction } from "./src/types/transaction";
+
+// Deep enough to cover a hard iOS bounce. Android stretches rather than
+// exposing the background, so this is inert there.
+const OVERSCROLL_FILL_HEIGHT = 600;
+
+function transactionKey(item: UnifiedTransaction) {
+  return item.id;
+}
 
 export default function App() {
   const [fontsLoaded, setFontsLoaded] = useState(false);
+  const { sections, isLoadingMore, error, now, loadMore, retry } =
+    useTransactionFeed();
 
   useEffect(() => {
     async function loadFonts() {
@@ -51,38 +67,79 @@ export default function App() {
     );
   }
 
+  const listHeader = (
+    <View>
+      {/* The list's own background is white, for the feed and for the bounce
+          past the bottom. This scrolls with the content and so paints the gap
+          opened by a bounce past the top, where the header is lime. */}
+      <View style={styles.overscrollFill} pointerEvents="none" />
+
+      <View style={styles.topContent}>
+        <LinearGradient
+          colors={["#E8FCA2", "white"]}
+          style={styles.gradientOverlay}
+          pointerEvents="none"
+        />
+        <Text style={styles.greeting}>Good morning, David!</Text>
+        <BalanceCard balance={157.18} />
+      </View>
+
+      <CurrencyCard usdToMxn={19.6} />
+
+      <View style={styles.transactionsHeader}>
+        <Text style={styles.transactionsTitle}>Transactions</Text>
+      </View>
+    </View>
+  );
+
+  // Nothing renders once the last page has landed: the spinner is tied to a
+  // fetch being in flight, not to there being more to fetch. Retry goes through
+  // the hook's own retry, never loadMore, which declines to fetch while errored.
+  const listFooter =
+    error !== null ? (
+      <View style={styles.footer}>
+        <Text style={styles.footerMessage}>We couldn’t load transactions.</Text>
+        <TouchableOpacity style={styles.footerAction} onPress={retry}>
+          <Text style={styles.footerActionText}>Try again</Text>
+        </TouchableOpacity>
+      </View>
+    ) : isLoadingMore ? (
+      <ActivityIndicator style={styles.footer} color="#023128" />
+    ) : null;
+
   return (
     <SafeAreaProvider>
       <View style={styles.outerContainer}>
         <StatusBar barStyle="dark-content" />
-        <View style={styles.topGradientSection}>
-          <Header />
-          <ScrollView style={styles.scrollView}>
-            <View style={styles.topContent}>
-              <LinearGradient
-                colors={["#E8FCA2", "white"]}
-                style={styles.gradientOverlay}
-                pointerEvents="none"
+        <Header />
+        <SectionList<UnifiedTransaction, TransactionSection>
+          style={styles.list}
+          contentContainerStyle={styles.listContent}
+          sections={sections}
+          keyExtractor={transactionKey}
+          ListHeaderComponent={listHeader}
+          ListFooterComponent={listFooter}
+          renderSectionHeader={({ section }) => (
+            <View style={styles.sectionHeader}>
+              <SectionHeader
+                groupLabel={section.groupLabel}
+                title={section.title}
               />
-              <Text style={styles.greeting}>Good morning, David!</Text>
-              <BalanceCard balance={157.18} />
             </View>
-
-            <View style={styles.whiteSection}>
-              <CurrencyCard usdToMxn={19.6} />
-
-              <View style={styles.transactionsHeader}>
-                <Text style={styles.transactionsTitle}>Transactions</Text>
-              </View>
-
-              <View style={styles.placeholder}>
-                <Text style={styles.placeholderText}>
-                  Transaction feed coming soon...
-                </Text>
-              </View>
+          )}
+          renderItem={({ item, section }) => (
+            <View style={styles.row}>
+              <TransactionRow
+                transaction={item}
+                showDate={section.title === undefined}
+                now={now}
+              />
             </View>
-          </ScrollView>
-        </View>
+          )}
+          stickySectionHeadersEnabled={false}
+          onEndReached={loadMore}
+          onEndReachedThreshold={0.5}
+        />
       </View>
     </SafeAreaProvider>
   );
@@ -99,16 +156,25 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  container: {
+  list: {
     flex: 1,
+    backgroundColor: "#FFFFFF",
   },
-  scrollView: {
-    flex: 1,
+  listContent: {
+    paddingBottom: 64,
   },
-  topGradientSection: {
-    flex: 1,
+  overscrollFill: {
+    position: "absolute",
+    top: -OVERSCROLL_FILL_HEIGHT,
+    left: 0,
+    right: 0,
+    height: OVERSCROLL_FILL_HEIGHT,
     backgroundColor: "#E8FCA2",
-    position: "relative",
+  },
+  topContent: {
+    paddingTop: 10,
+    paddingBottom: 16,
+    backgroundColor: "#E8FCA2",
   },
   gradientOverlay: {
     position: "absolute",
@@ -116,16 +182,6 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: 100,
-  },
-  topContent: {
-    paddingTop: 10,
-    backgroundColor: "#E8FCA2",
-  },
-  whiteSection: {
-    backgroundColor: "#FFFFFF",
-    flex: 1,
-    minHeight: "100%",
-    paddingTop: 16,
   },
   greeting: {
     fontSize: 24,
@@ -140,23 +196,44 @@ const styles = StyleSheet.create({
   transactionsHeader: {
     paddingHorizontal: 16,
     marginTop: 24,
-    marginBottom: 12,
   },
   transactionsTitle: {
     fontSize: 18,
     fontFamily: "GeneralSans-Medium",
     fontWeight: "500",
     color: "#292929",
-    lineHeight: 24,
+    lineHeight: 26,
   },
-  placeholder: {
-    padding: 40,
+  sectionHeader: {
+    marginTop: 24,
+  },
+  row: {
+    marginTop: 16,
+  },
+  footer: {
+    paddingVertical: 24,
+    paddingHorizontal: 16,
     alignItems: "center",
+    gap: 8,
   },
-  placeholderText: {
+  footerMessage: {
+    fontSize: 14,
+    fontFamily: "Inter-Regular",
+    fontWeight: "400",
+    color: "#616161",
+    lineHeight: 20,
+    letterSpacing: -0.14,
+  },
+  footerAction: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+  },
+  footerActionText: {
     fontSize: 16,
     fontFamily: "Inter-Regular",
-    color: "#666",
-    textAlign: "center",
+    fontWeight: "400",
+    color: "#2F7BE1",
+    lineHeight: 24,
+    letterSpacing: -0.16,
   },
 });
