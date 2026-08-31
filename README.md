@@ -5,13 +5,12 @@ design and mock transaction API.
 
 ## Demo
 
-_paste iOS video here_
+- [demo/comun-ios-demo.mp4](demo/comun-ios-demo.mp4)
+- [demo/comun-android-demo.mp4](demo/comun-android-demo.mp4)
 
-_paste Android video here_
-
-The error state shown in the recordings was produced by temporarily injecting a
-one-shot failure into the mock, which never rejects on its own. That edit is not
-in this repo.
+The error state in the recordings came from temporarily injecting a one-shot
+failure into the mock, which never rejects on its own. That edit is not in this
+repo.
 
 ## Running
 
