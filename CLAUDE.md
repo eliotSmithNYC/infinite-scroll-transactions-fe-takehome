@@ -48,7 +48,14 @@ From `src/data/mockTransactions.ts`. These cause real bugs if missed:
   stop at the end.
 - Page 0 may not fill the viewport, so `onEndReached` can fire immediately on mount.
 - The fixture includes a transaction with `lifecycleStatus: ERROR` / `statusPill: FAILED`,
-  and `statusPillInfo` is populated across the data.
+  and `statusPillInfo` is populated across the data. It is `Payment to Jose Perozo`, one
+  of the two hardcoded January 2025 rows below — so the failed-row rendering appears at
+  the *bottom* of the feed, not near the top where its page-0 position suggests.
+- **Two page-0 rows are hardcoded to `new Date(2025, 0, 1)`** (lines 229, 248) while
+  every other row is a `Date.now()` offset reaching ~45 days back, so the gap between
+  them widens as real time passes. They sort to the bottom of the feed and stay there —
+  correct for date-ordered sections, and a free check that grouping is derived from the
+  whole accumulated list rather than appended per page.
 - Some transactions have no counterparty (`Check deposit`, `Remittance charge`) and some
   are merchants (`Starbucks`), so avatars need a fallback path.
 - `details` is optional and a discriminated union: `Remittance charge` has no `details`
